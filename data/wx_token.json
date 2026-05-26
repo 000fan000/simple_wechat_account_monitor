@@ -1,0 +1,92 @@
+{
+  "token": "1969116417",
+  "cookie_str": "bizuin=3078072284; data_bizuin=3078072284; data_ticket=XJcf8vC+aEqgiR2IZaI7e5Rvv2EQsmUFiaxwE71q3sTOpSzPWwiPnSLfPVslSsI1; mm_lang=zh_CN; rand_info=CAESIPUhLqrgZEsB6rm7R4f4T/JIV3E5FHf/puMIXKECm9JL; slave_bizuin=3078072284; slave_sid=bG85ZEgzc0xqRk9uRnYyWmhkcEZ3MUNXZHA0OTRCMUE1NWZ4N0ZfTzh1S2Uwa0kyNUpKOVpISF8wWnBRNXFnb1o4VFZITjZ0MmlSd3dlNWZzNXd2dzllNkZ3NHJ0WWlEazdoWllleV9ZaTZVVGtjaXZ1YzZSMnNVVmxOeHNHYm1RTGxwRTMxUWFTMFEzZ09q; slave_user=gh_003f8bf462c1; ua_id=ZySa8D1W11syggdxAAAAAPGLwdrq58m3quQTvGSxNd4=; uuid=ca3e49e4d8961cab005ee4301c5c1d5f; xid=fa4f5fcc013a63ca013c08cca26afcdb",
+  "cookies_list": [
+    {
+      "name": "bizuin",
+      "value": "3078072284",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 1780129616
+    },
+    {
+      "name": "data_bizuin",
+      "value": "3078072284",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 1780129616
+    },
+    {
+      "name": "data_ticket",
+      "value": "XJcf8vC+aEqgiR2IZaI7e5Rvv2EQsmUFiaxwE71q3sTOpSzPWwiPnSLfPVslSsI1",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 1780129616
+    },
+    {
+      "name": "mm_lang",
+      "value": "zh_CN",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 4294967295
+    },
+    {
+      "name": "rand_info",
+      "value": "CAESIPUhLqrgZEsB6rm7R4f4T/JIV3E5FHf/puMIXKECm9JL",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 1780129616
+    },
+    {
+      "name": "slave_bizuin",
+      "value": "3078072284",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 1780129616
+    },
+    {
+      "name": "slave_sid",
+      "value": "bG85ZEgzc0xqRk9uRnYyWmhkcEZ3MUNXZHA0OTRCMUE1NWZ4N0ZfTzh1S2Uwa0kyNUpKOVpISF8wWnBRNXFnb1o4VFZITjZ0MmlSd3dlNWZzNXd2dzllNkZ3NHJ0WWlEazdoWllleV9ZaTZVVGtjaXZ1YzZSMnNVVmxOeHNHYm1RTGxwRTMxUWFTMFEzZ09q",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 1780129616
+    },
+    {
+      "name": "slave_user",
+      "value": "gh_003f8bf462c1",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 1780129616
+    },
+    {
+      "name": "ua_id",
+      "value": "ZySa8D1W11syggdxAAAAAPGLwdrq58m3quQTvGSxNd4=",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 2147483647
+    },
+    {
+      "name": "uuid",
+      "value": "ca3e49e4d8961cab005ee4301c5c1d5f",
+      "domain": "mp.weixin.qq.com",
+      "path": "/"
+    },
+    {
+      "name": "xid",
+      "value": "fa4f5fcc013a63ca013c08cca26afcdb",
+      "domain": "mp.weixin.qq.com",
+      "path": "/",
+      "expires": 2147483647
+    }
+  ],
+  "fingerprint": "9f70859a333c4b9a8e70d9c2aba81ee3",
+  "expiry": {
+    "expiry_timestamp": 1780129616,
+    "remaining_seconds": 345599,
+    "expiry_time": "2026-05-30 16:26:56"
+  },
+  "ext_data": {
+    "wx_app_name": "gh_003f8bf462c1",
+    "wx_logo": "http://wx.qlogo.cn/mmhead/ofvnGicEPbfRibMibrXcwtOP2AUcML2Hq6tU7uTrpX18icHvJSwWPOIvFzWDHEYjichNcwibiaEr95OUrI/0"
+  }
+}

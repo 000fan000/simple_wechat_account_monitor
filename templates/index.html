@@ -1,0 +1,363 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>微信公众号文章采集</title>
+    <style>
+        * { box-sizing: border-box; margin: 0; padding: 0; }
+        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f5f5; color: #333; }
+        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+        h1 { font-size: 24px; margin-bottom: 20px; color: #1aad19; }
+        .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 20px; }
+        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+        
+        /* 登录区域 */
+        .login-area { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+        .login-status { font-size: 14px; padding: 6px 12px; border-radius: 4px; }
+        .login-status.logged-in { background: #e8f5e9; color: #2e7d32; }
+        .login-status.not-logged-in { background: #fff3e0; color: #e65100; }
+        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
+        .btn-primary { background: #1aad19; color: #fff; }
+        .btn-primary:hover { background: #179b16; }
+        .btn-primary:disabled { background: #a5d6a7; cursor: not-allowed; }
+        .btn-secondary { background: #f5f5f5; color: #666; border: 1px solid #ddd; }
+        .btn-secondary:hover { background: #eee; }
+        .btn-danger { background: #ff5722; color: #fff; }
+        .btn-danger:hover { background: #e64a19; }
+        
+        /* 二维码 */
+        .qrcode-area { display: flex; gap: 20px; align-items: flex-start; }
+        .qrcode-box { text-align: center; }
+        .qrcode-box img { width: 200px; height: 200px; border: 1px solid #eee; }
+        .qrcode-hint { font-size: 12px; color: #999; margin-top: 8px; }
+        .status-message { font-size: 14px; color: #666; padding: 10px; }
+        .status-message.success { color: #2e7d32; }
+        .status-message.error { color: #c62828; }
+        .status-message.scanned { color: #e65100; }
+        
+        /* 输入区域 */
+        .input-area { display: flex; flex-direction: column; gap: 15px; }
+        textarea { width: 100%; min-height: 150px; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical; font-family: inherit; }
+        textarea:focus { outline: none; border-color: #1aad19; }
+        textarea::placeholder { color: #999; }
+        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+        
+        /* 文章列表 */
+        .article-table { width: 100%; border-collapse: collapse; }
+        .article-table th { text-align: left; padding: 12px 8px; border-bottom: 2px solid #eee; font-size: 13px; color: #666; background: #fafafa; }
+        .article-table td { padding: 12px 8px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
+        .article-table tr:hover { background: #f9f9f9; }
+        .article-table .title-cell { max-width: 300px; }
+        .article-table .title-cell a { color: #1aad19; text-decoration: none; }
+        .article-table .title-cell a:hover { text-decoration: underline; }
+        .article-table .time-cell { width: 140px; color: #999; font-size: 13px; }
+        .article-table .mp-cell { width: 120px; color: #666; }
+        .article-table .action-cell { width: 80px; }
+        .article-table .delete-btn { color: #ff5722; cursor: pointer; background: none; border: none; font-size: 14px; }
+        .article-table .delete-btn:hover { color: #e64a19; }
+        
+        /* 分页 */
+        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px; }
+        .pagination button { padding: 6px 12px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 4px; }
+        .pagination button:hover:not(:disabled) { background: #f5f5f5; }
+        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+        .pagination .page-info { font-size: 14px; color: #666; }
+        
+        /* 加载状态 */
+        .loading { text-align: center; padding: 40px; color: #999; }
+        .loading::after { content: '...'; animation: dots 1.5s infinite; }
+        @keyframes dots { 0%,20% { content: '.'; } 40% { content: '..'; } 60%,100% { content: '...'; } }
+        
+        /* 空状态 */
+        .empty-state { text-align: center; padding: 60px 20px; color: #999; }
+        .empty-state-icon { font-size: 48px; margin-bottom: 10px; }
+        
+        /* 响应式 */
+        @media (max-width: 768px) {
+            .container { padding: 10px; }
+            .qrcode-area { flex-direction: column; }
+            .article-table { font-size: 12px; }
+            .article-table .mp-cell, .article-table .time-cell { display: none; }
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1>📰 微信公众号文章采集</h1>
+        
+        <!-- 登录区域 -->
+        <div class="card">
+            <div class="card-title">🔐 微信登录</div>
+            <div class="login-area">
+                <span class="login-status not-logged-in" id="loginStatus">未登录</span>
+                <button class="btn btn-primary" id="scanBtn" onclick="showQRCode()">扫码登录</button>
+                <button class="btn btn-danger" id="logoutBtn" onclick="doLogout()" style="display:none;">退出</button>
+            </div>
+            <div class="qrcode-area" id="qrcodeArea" style="display:none;">
+                <div class="qrcode-box">
+                    <img id="qrcodeImg" src="" alt="二维码">
+                    <div class="qrcode-hint">请使用微信扫码登录</div>
+                </div>
+                <div class="status-message" id="statusMsg">请扫描上方二维码</div>
+            </div>
+        </div>
+        
+        <!-- URL输入区域 -->
+        <div class="card">
+            <div class="card-title">📝 文章URL列表</div>
+            <div class="input-area">
+                <textarea id="urlList" placeholder="每行一个文章URL，例如：
+https://mp.weixin.qq.com/s/xxxxx
+https://mp.weixin.qq.com/s/yyyyy"></textarea>
+                <div class="btn-group">
+                    <button class="btn btn-primary" id="fetchBtn" onclick="fetchArticles()">抓取正文</button>
+                    <button class="btn btn-secondary" onclick="clearUrls()">清空</button>
+                    <button class="btn btn-primary" id="exportBtn" onclick="exportArticles()">导出Excel</button>
+                </div>
+                <div id="fetchResult" style="font-size:14px;color:#666;"></div>
+            </div>
+        </div>
+        
+        <!-- 文章列表 -->
+        <div class="card">
+            <div class="card-title">📚 已采集文章 (<span id="totalCount">0</span>篇)</div>
+            <div id="articleList">
+                <div class="empty-state">
+                    <div class="empty-state-icon">📭</div>
+                    <div>暂无文章，请在上方粘贴URL后点击"抓取正文"</div>
+                </div>
+            </div>
+            <div class="pagination" id="pagination"></div>
+        </div>
+    </div>
+
+    <script>
+        let currentPage = 1;
+        let totalPages = 1;
+        let totalCount = 0;
+        let isLoggedIn = false;
+        let pollTimer = null;
+
+        async function checkLoginStatus() {
+            try {
+                const res = await fetch('/api/auth/status');
+                const data = await res.json();
+                if (data.code === 0) {
+                    const status = data.data;
+                    updateLoginUI(status);
+                    if (status.status === 2) {
+                        isLoggedIn = true;
+                        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+                    } else if (status.status === 0 || status.status === 1 || status.status === -1) {
+                        isLoggedIn = false;
+                        if (!pollTimer) startPolling();
+                    }
+                }
+            } catch (e) { console.error('检查登录状态失败', e); }
+        }
+
+        function updateLoginUI(status) {
+            const statusEl = document.getElementById('loginStatus');
+            const scanBtn = document.getElementById('scanBtn');
+            const logoutBtn = document.getElementById('logoutBtn');
+            const qrcodeArea = document.getElementById('qrcodeArea');
+            const statusMsg = document.getElementById('statusMsg');
+
+            if (status.status === 2) {
+                statusEl.className = 'login-status logged-in';
+                statusEl.textContent = '已登录 ✓';
+                scanBtn.style.display = 'none';
+                logoutBtn.style.display = 'inline-block';
+                qrcodeArea.style.display = 'none';
+                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+            } else {
+                statusEl.className = 'login-status not-logged-in';
+                statusEl.textContent = status.msg || '未登录';
+                scanBtn.style.display = 'inline-block';
+                logoutBtn.style.display = 'none';
+            }
+        }
+
+        function startPolling() {
+            if (pollTimer) return;
+            pollTimer = setInterval(checkLoginStatus, 2000);
+        }
+
+        async function showQRCode() {
+            const qrcodeArea = document.getElementById('qrcodeArea');
+            const qrcodeImg = document.getElementById('qrcodeImg');
+            const statusMsg = document.getElementById('statusMsg');
+            
+            qrcodeArea.style.display = 'flex';
+            statusMsg.className = 'status-message';
+            statusMsg.textContent = '正在获取二维码...';
+
+            try {
+                const res = await fetch('/api/auth/qrcode');
+                const data = await res.json();
+                if (data.code === 0 && data.data.code) {
+                    qrcodeImg.src = data.data.code;
+                    statusMsg.textContent = '请使用微信扫描上方二维码';
+                    startPolling();
+                } else {
+                    statusMsg.className = 'status-message error';
+                    statusMsg.textContent = data.msg || '获取二维码失败';
+                }
+            } catch (e) {
+                statusMsg.className = 'status-message error';
+                statusMsg.textContent = '获取二维码失败';
+            }
+        }
+
+        async function doLogout() {
+            try {
+                await fetch('/api/auth/logout', { method: 'POST' });
+                isLoggedIn = false;
+                checkLoginStatus();
+            } catch (e) { console.error('登出失败', e); }
+        }
+
+        async function fetchArticles() {
+            const urlList = document.getElementById('urlList').value.trim();
+            const fetchBtn = document.getElementById('fetchBtn');
+            const fetchResult = document.getElementById('fetchResult');
+
+            if (!urlList) {
+                fetchResult.style.color = '#e65100';
+                fetchResult.textContent = '请先粘贴文章URL';
+                return;
+            }
+
+            const urls = urlList.split('\n').map(u => u.trim()).filter(u => u);
+            if (urls.length === 0) {
+                fetchResult.style.color = '#e65100';
+                fetchResult.textContent = 'URL列表为空';
+                return;
+            }
+
+            fetchBtn.disabled = true;
+            fetchBtn.textContent = '抓取中...';
+            fetchResult.style.color = '#666';
+            fetchResult.textContent = `正在抓取 0/${urls.length} 篇...`;
+
+            try {
+                const res = await fetch('/api/articles/fetch', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ urls })
+                });
+                const data = await res.json();
+
+                if (data.code === 0) {
+                    fetchResult.style.color = '#2e7d32';
+                    fetchResult.textContent = data.msg;
+                    document.getElementById('urlList').value = '';
+                    loadArticles(1);
+                } else {
+                    fetchResult.style.color = '#c62828';
+                    fetchResult.textContent = data.msg || '抓取失败';
+                }
+            } catch (e) {
+                fetchResult.style.color = '#c62828';
+                fetchResult.textContent = '抓取请求失败: ' + e.message;
+            } finally {
+                fetchBtn.disabled = false;
+                fetchBtn.textContent = '抓取正文';
+            }
+        }
+
+        function clearUrls() {
+            document.getElementById('urlList').value = '';
+            document.getElementById('fetchResult').textContent = '';
+        }
+
+        async function loadArticles(page = 1) {
+            const articleList = document.getElementById('articleList');
+            const pagination = document.getElementById('pagination');
+            const totalCountEl = document.getElementById('totalCount');
+
+            articleList.innerHTML = '<div class="loading">加载中</div>';
+            pagination.innerHTML = '';
+
+            try {
+                const res = await fetch(`/api/articles?page=${page}&size=20`);
+                const data = await res.json();
+
+                if (data.code === 0) {
+                    const result = data.data;
+                    currentPage = result.page;
+                    totalPages = result.pages;
+                    totalCount = result.total;
+                    totalCountEl.textContent = totalCount;
+
+                    if (result.items.length === 0) {
+                        articleList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>暂无文章</div></div>';
+                        return;
+                    }
+
+                    let html = `<table class="article-table">
+                        <thead><tr>
+                            <th>标题</th>
+                            <th class="mp-cell">公众号</th>
+                            <th class="time-cell">时间</th>
+                            <th class="action-cell">操作</th>
+                        </tr></thead>
+                        <tbody>`;
+
+                    result.items.forEach(article => {
+                        const time = article.publish_time ? new Date(article.publish_time * 1000).toLocaleString('zh-CN') : '-';
+                        html += `<tr>
+                            <td class="title-cell">
+                                <a href="${article.url}" target="_blank" title="${article.title}">${article.title}</a>
+                            </td>
+                            <td class="mp-cell">${article.mp_name || '-'}</td>
+                            <td class="time-cell">${time}</td>
+                            <td class="action-cell">
+                                <button class="delete-btn" onclick="deleteArticle('${article.id}')">删除</button>
+                            </td>
+                        </tr>`;
+                    });
+
+                    html += '</tbody></table>';
+                    articleList.innerHTML = html;
+
+                    if (totalPages > 1) {
+                        let pageHtml = `<button onclick="loadArticles(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
+                        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
+                            pageHtml += `<button onclick="loadArticles(${i})" ${i === currentPage ? 'style="background:#1aad19;color:#fff;"' : ''}>${i}</button>`;
+                        }
+                        pageHtml += `<button onclick="loadArticles(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
+                        pageHtml += `<span class="page-info">第${currentPage}/${totalPages}页 共${totalCount}篇</span>`;
+                        pagination.innerHTML = pageHtml;
+                    }
+                }
+            } catch (e) {
+                articleList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div>加载失败</div></div>';
+            }
+        }
+
+        async function deleteArticle(id) {
+            if (!confirm('确定删除这篇文章？')) return;
+            try {
+                const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
+                const data = await res.json();
+                if (data.code === 0) {
+                    loadArticles(currentPage);
+                } else {
+                    alert(data.msg || '删除失败');
+                }
+            } catch (e) { alert('删除失败: ' + e.message); }
+        }
+
+        function exportArticles() {
+            window.location.href = '/api/articles/export';
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            checkLoginStatus();
+            loadArticles(1);
+        });
+    </script>
+</body>
+</html>
