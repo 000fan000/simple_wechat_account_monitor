@@ -6,7 +6,11 @@ import os
 import re
 import time
 import json
+import base64
+import random
 from urllib.parse import quote
+import base64
+import random
 from typing import Optional, Dict, Any, Callable
 from threading import Lock, Timer
 
@@ -366,6 +370,63 @@ class WeChatAPI:
         else:
             return {"status": 0, "is_logged_in": False, "msg": "未扫码"}
 
+
+
+class MpsWeb:
+    def __init__(self, token: str, cookie_str: str):
+        self.base_url = "https://mp.weixin.qq.com"
+        self.token = token
+        self.session = requests.Session()
+        self.session.headers.update({
+            "Cookie": cookie_str,
+            "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 Chrome/120.0.0.0 Safari/537.36",
+            "Referer": "https://mp.weixin.qq.com/",
+            "X-Requested-With": "XMLHttpRequest",
+        })
+
+    def get_Articles(self, fakeid: str, begin: int = 0, count: int = 5) -> dict:
+        url = f"{self.base_url}/cgi-bin/appmsgpublish"
+        params = {
+            "sub": "list", "sub_action": "list_ex",
+            "begin": begin, "count": count,
+            "fakeid": fakeid, "token": self.token,
+            "lang": "zh_CN", "f": "json", "ajax": 1,
+        }
+        resp = self.session.get(url, params=params, timeout=15)
+        resp.raise_for_status()
+        return resp.json()
+
+
+def get_mpsweb() -> MpsWeb:
+    token_data = getWxToken()
+    if not token_data or not token_data.get('token'):
+        raise Exception("未登录，请先扫码登录")
+    return MpsWeb(token_data['token'], token_data.get('cookie_str', ''))
+
+
+def extract_biz_from_url(url: str) -> str:
+    m = re.search(r'[?&]__biz=([^&]+)', url)
+    if m:
+        return m.group(1)
+    return ''
+
+
+def extract_fakeid_from_html(html: str) -> str:
+    """从页面HTML提取 fakeid (var biz = '...')，该值已是 base64 编码的 fakeid，非 raw __biz"""
+    m = re.search(r'var\s+biz\s*=\s*["\x27]([^"\x27]+)["\x27]', html)
+    if m:
+        return m.group(1)
+    return ''
+
+
+def biz_to_fakeid(biz: str) -> str:
+    """将 URL query 中的 raw __biz 编码为 fakeid"""
+    return base64.b64encode(biz.encode()).decode()
+
+
+def fakeid_to_biz(fakeid: str) -> str:
+    """将 fakeid 解码为 raw __biz"""
+    return base64.b64decode(fakeid.encode()).decode()
 
 WeChat_api = WeChatAPI()
 

@@ -1,363 +1,534 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>微信公众号文章采集</title>
-    <style>
-        * { box-sizing: border-box; margin: 0; padding: 0; }
-        body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, sans-serif; background: #f5f5f5; color: #333; }
-        .container { max-width: 1200px; margin: 0 auto; padding: 20px; }
-        h1 { font-size: 24px; margin-bottom: 20px; color: #1aad19; }
-        .card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 20px; }
-        .card-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 10px; }
-        
-        /* 登录区域 */
-        .login-area { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
-        .login-status { font-size: 14px; padding: 6px 12px; border-radius: 4px; }
-        .login-status.logged-in { background: #e8f5e9; color: #2e7d32; }
-        .login-status.not-logged-in { background: #fff3e0; color: #e65100; }
-        .btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; transition: all 0.2s; }
-        .btn-primary { background: #1aad19; color: #fff; }
-        .btn-primary:hover { background: #179b16; }
-        .btn-primary:disabled { background: #a5d6a7; cursor: not-allowed; }
-        .btn-secondary { background: #f5f5f5; color: #666; border: 1px solid #ddd; }
-        .btn-secondary:hover { background: #eee; }
-        .btn-danger { background: #ff5722; color: #fff; }
-        .btn-danger:hover { background: #e64a19; }
-        
-        /* 二维码 */
-        .qrcode-area { display: flex; gap: 20px; align-items: flex-start; }
-        .qrcode-box { text-align: center; }
-        .qrcode-box img { width: 200px; height: 200px; border: 1px solid #eee; }
-        .qrcode-hint { font-size: 12px; color: #999; margin-top: 8px; }
-        .status-message { font-size: 14px; color: #666; padding: 10px; }
-        .status-message.success { color: #2e7d32; }
-        .status-message.error { color: #c62828; }
-        .status-message.scanned { color: #e65100; }
-        
-        /* 输入区域 */
-        .input-area { display: flex; flex-direction: column; gap: 15px; }
-        textarea { width: 100%; min-height: 150px; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical; font-family: inherit; }
-        textarea:focus { outline: none; border-color: #1aad19; }
-        textarea::placeholder { color: #999; }
-        .btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
-        
-        /* 文章列表 */
-        .article-table { width: 100%; border-collapse: collapse; }
-        .article-table th { text-align: left; padding: 12px 8px; border-bottom: 2px solid #eee; font-size: 13px; color: #666; background: #fafafa; }
-        .article-table td { padding: 12px 8px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
-        .article-table tr:hover { background: #f9f9f9; }
-        .article-table .title-cell { max-width: 300px; }
-        .article-table .title-cell a { color: #1aad19; text-decoration: none; }
-        .article-table .title-cell a:hover { text-decoration: underline; }
-        .article-table .time-cell { width: 140px; color: #999; font-size: 13px; }
-        .article-table .mp-cell { width: 120px; color: #666; }
-        .article-table .action-cell { width: 80px; }
-        .article-table .delete-btn { color: #ff5722; cursor: pointer; background: none; border: none; font-size: 14px; }
-        .article-table .delete-btn:hover { color: #e64a19; }
-        
-        /* 分页 */
-        .pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px; }
-        .pagination button { padding: 6px 12px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 4px; }
-        .pagination button:hover:not(:disabled) { background: #f5f5f5; }
-        .pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
-        .pagination .page-info { font-size: 14px; color: #666; }
-        
-        /* 加载状态 */
-        .loading { text-align: center; padding: 40px; color: #999; }
-        .loading::after { content: '...'; animation: dots 1.5s infinite; }
-        @keyframes dots { 0%,20% { content: '.'; } 40% { content: '..'; } 60%,100% { content: '...'; } }
-        
-        /* 空状态 */
-        .empty-state { text-align: center; padding: 60px 20px; color: #999; }
-        .empty-state-icon { font-size: 48px; margin-bottom: 10px; }
-        
-        /* 响应式 */
-        @media (max-width: 768px) {
-            .container { padding: 10px; }
-            .qrcode-area { flex-direction: column; }
-            .article-table { font-size: 12px; }
-            .article-table .mp-cell, .article-table .time-cell { display: none; }
-        }
-    </style>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>微信公众号文章采集</title>
+<style>
+* { box-sizing: border-box; margin: 0; padding: 0; }
+body { font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, sans-serif; background: #f5f5f5; color: #333; }
+.container { max-width: 1200px; margin: 0 auto; padding: 20px; }
+h1 { font-size: 24px; margin-bottom: 20px; color: #1aad19; }
+
+/* tabs */
+.tabs { display: flex; gap: 0; margin-bottom: 0; border-bottom: 2px solid #ddd; }
+.tab-btn { padding: 10px 24px; border: none; background: none; font-size: 15px; cursor: pointer; color: #999; border-bottom: 2px solid transparent; margin-bottom: -2px; }
+.tab-btn.active { color: #1aad19; border-bottom-color: #1aad19; font-weight: 600; }
+.tab-content { display: none; }
+.tab-content.active { display: block; }
+
+.card { background: #fff; border-radius: 8px; box-shadow: 0 2px 8px rgba(0,0,0,0.08); padding: 20px; margin-bottom: 20px; }
+.card-title { font-size: 16px; font-weight: 600; margin-bottom: 15px; color: #666; border-bottom: 1px solid #eee; padding-bottom: 10px; }
+.login-area { display: flex; align-items: center; gap: 15px; margin-bottom: 15px; }
+.login-status { font-size: 14px; padding: 6px 12px; border-radius: 4px; }
+.login-status.logged-in { background: #e8f5e9; color: #2e7d32; }
+.login-status.not-logged-in { background: #fff3e0; color: #e65100; }
+.btn { padding: 8px 16px; border: none; border-radius: 4px; cursor: pointer; font-size: 14px; }
+.btn-primary { background: #1aad19; color: #fff; }
+.btn-primary:hover { background: #179b16; }
+.btn-primary:disabled { background: #a5d6a7; cursor: not-allowed; }
+.btn-secondary { background: #f5f5f5; color: #666; border: 1px solid #ddd; }
+.btn-secondary:hover { background: #eee; }
+.btn-danger { background: #ff5722; color: #fff; }
+.btn-danger:hover { background: #e64a19; }
+.qrcode-area { display: flex; gap: 20px; align-items: flex-start; }
+.qrcode-box img { width: 200px; height: 200px; border: 1px solid #eee; }
+.qrcode-hint { font-size: 12px; color: #999; margin-top: 8px; }
+.status-message { font-size: 14px; color: #666; padding: 10px; }
+.input-area { display: flex; flex-direction: column; gap: 15px; }
+textarea { width: 100%; min-height: 150px; padding: 12px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; resize: vertical; }
+textarea:focus { outline: none; border-color: #1aad19; }
+.btn-group { display: flex; gap: 10px; flex-wrap: wrap; }
+.account-list { margin-top: 12px; }
+.account-item { display: flex; align-items: center; gap: 12px; padding: 10px 12px; background: #f9f9f9; border-radius: 6px; margin-bottom: 8px; border: 1px solid #eee; }
+.account-item .info { flex: 1; }
+.account-item .name { font-weight: 600; font-size: 14px; }
+.account-item .detail { font-size: 12px; color: #999; }
+.account-item .actions { display: flex; gap: 8px; align-items: center; }
+.account-item .pages-input { width: 50px; padding: 4px 6px; border: 1px solid #ddd; border-radius: 3px; font-size: 13px; text-align: center; }
+.article-table { width: 100%; border-collapse: collapse; }
+.article-table th { text-align: left; padding: 10px 8px; border-bottom: 2px solid #eee; font-size: 13px; color: #666; background: #fafafa; }
+.article-table td { padding: 10px 8px; border-bottom: 1px solid #eee; font-size: 14px; vertical-align: top; }
+.article-table tr:hover { background: #f9f9f9; }
+.article-table .title-cell { max-width: 300px; }
+.article-table .title-cell a { color: #1aad19; text-decoration: none; }
+.article-table .time-cell { width: 140px; color: #999; font-size: 13px; }
+.article-table .mp-cell { width: 120px; color: #666; }
+.article-table .action-cell { width: 80px; }
+.article-table .delete-btn { color: #ff5722; cursor: pointer; background: none; border: none; font-size: 14px; }
+.pagination { display: flex; justify-content: center; align-items: center; gap: 8px; margin-top: 20px; }
+.pagination button { padding: 6px 12px; border: 1px solid #ddd; background: #fff; cursor: pointer; border-radius: 4px; }
+.pagination button:disabled { opacity: 0.5; cursor: not-allowed; }
+.pagination .page-info { font-size: 14px; color: #666; }
+.loading { text-align: center; padding: 40px; color: #999; }
+.empty-state { text-align: center; padding: 60px 20px; color: #999; }
+.empty-state-icon { font-size: 48px; margin-bottom: 10px; }
+.filter-bar { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin-bottom: 15px; }
+.filter-bar select { padding: 6px 10px; border: 1px solid #ddd; border-radius: 4px; font-size: 14px; }
+.filter-bar input[type="date"] { padding: 5px 8px; border: 1px solid #ddd; border-radius: 4px; font-size: 13px; }
+.article-table th.cb-cell { width: 40px; text-align: center; }
+.article-table td.cb-cell { text-align: center; }
+.article-table .status-badge { display: inline-block; font-size: 11px; padding: 2px 6px; border-radius: 3px; }
+.article-table .status-badge.done { background: #e8f5e9; color: #2e7d32; }
+.article-table .status-badge.pending { background: #fff3e0; color: #e65100; }
+.article-table td.title-cell a { cursor: pointer; }
+
+/* sidebar */
+.sidebar-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.3); z-index: 999; display: none; }
+.sidebar { position: fixed; top: 0; right: -700px; width: 680px; max-width: 95vw; height: 100vh; background: #fff; z-index: 1000; transition: right 0.25s ease; display: flex; flex-direction: column; box-shadow: -4px 0 20px rgba(0,0,0,0.15); }
+.sidebar.open { right: 0; }
+.sidebar-header { display: flex; align-items: center; padding: 16px 20px; border-bottom: 1px solid #eee; flex-shrink: 0; }
+.sidebar-header h2 { font-size: 16px; flex: 1; margin: 0; line-height: 1.4; max-height: 52px; overflow: hidden; }
+.sidebar-header .close-btn { font-size: 22px; cursor: pointer; color: #999; background: none; border: none; padding: 0 4px; margin-left: 12px; }
+.sidebar-header .close-btn:hover { color: #333; }
+.sidebar-meta { padding: 12px 20px; border-bottom: 1px solid #eee; font-size: 13px; color: #999; flex-shrink: 0; display: flex; gap: 16px; flex-wrap: wrap; }
+.sidebar-body { flex: 1; overflow-y: auto; padding: 20px; }
+.sidebar-body .content-loading { text-align: center; padding: 40px; color: #999; }
+.sidebar-body .article-content { font-size: 15px; line-height: 1.8; color: #333; }
+.sidebar-body .article-content img { max-width: 100%; height: auto; }
+.sidebar-body .article-content p { margin-bottom: 12px; }
+.sidebar-body .article-content .content_text { white-space: pre-wrap; }
+.sidebar-footer { padding: 14px 20px; border-top: 1px solid #eee; flex-shrink: 0; display: flex; gap: 10px; }
+</style>
 </head>
 <body>
-    <div class="container">
-        <h1>📰 微信公众号文章采集</h1>
-        
-        <!-- 登录区域 -->
-        <div class="card">
-            <div class="card-title">🔐 微信登录</div>
-            <div class="login-area">
-                <span class="login-status not-logged-in" id="loginStatus">未登录</span>
-                <button class="btn btn-primary" id="scanBtn" onclick="showQRCode()">扫码登录</button>
-                <button class="btn btn-danger" id="logoutBtn" onclick="doLogout()" style="display:none;">退出</button>
-            </div>
-            <div class="qrcode-area" id="qrcodeArea" style="display:none;">
-                <div class="qrcode-box">
-                    <img id="qrcodeImg" src="" alt="二维码">
-                    <div class="qrcode-hint">请使用微信扫码登录</div>
-                </div>
-                <div class="status-message" id="statusMsg">请扫描上方二维码</div>
-            </div>
+<div class="container">
+  <h1>微信公众号文章采集</h1>
+
+  <div class="tabs">
+    <button class="tab-btn active" onclick="switchTab('collect')">文章采集</button>
+    <button class="tab-btn" onclick="switchTab('manage')">已采集文章</button>
+  </div>
+
+  <!-- ========== Tab 1: 文章采集 ========== -->
+  <div class="tab-content active" id="tab-collect">
+    <div class="card">
+      <div class="card-title">微信登录</div>
+      <div class="login-area">
+        <span class="login-status not-logged-in" id="loginStatus">未登录</span>
+        <button class="btn btn-primary" id="scanBtn" onclick="showQRCode()">扫码登录</button>
+        <button class="btn btn-danger" id="logoutBtn" onclick="doLogout()" style="display:none;">退出</button>
+      </div>
+      <div class="qrcode-area" id="qrcodeArea" style="display:none;">
+        <div class="qrcode-box">
+          <img id="qrcodeImg" src="" alt="二维码">
+          <div class="qrcode-hint">请使用微信扫码登录</div>
         </div>
-        
-        <!-- URL输入区域 -->
-        <div class="card">
-            <div class="card-title">📝 文章URL列表</div>
-            <div class="input-area">
-                <textarea id="urlList" placeholder="每行一个文章URL，例如：
-https://mp.weixin.qq.com/s/xxxxx
-https://mp.weixin.qq.com/s/yyyyy"></textarea>
-                <div class="btn-group">
-                    <button class="btn btn-primary" id="fetchBtn" onclick="fetchArticles()">抓取正文</button>
-                    <button class="btn btn-secondary" onclick="clearUrls()">清空</button>
-                    <button class="btn btn-primary" id="exportBtn" onclick="exportArticles()">导出Excel</button>
-                </div>
-                <div id="fetchResult" style="font-size:14px;color:#666;"></div>
-            </div>
-        </div>
-        
-        <!-- 文章列表 -->
-        <div class="card">
-            <div class="card-title">📚 已采集文章 (<span id="totalCount">0</span>篇)</div>
-            <div id="articleList">
-                <div class="empty-state">
-                    <div class="empty-state-icon">📭</div>
-                    <div>暂无文章，请在上方粘贴URL后点击"抓取正文"</div>
-                </div>
-            </div>
-            <div class="pagination" id="pagination"></div>
-        </div>
+        <div class="status-message" id="statusMsg">请扫描上方二维码</div>
+      </div>
     </div>
 
-    <script>
-        let currentPage = 1;
-        let totalPages = 1;
-        let totalCount = 0;
-        let isLoggedIn = false;
-        let pollTimer = null;
+    <div class="card">
+      <div class="card-title">文章URL列表</div>
+      <div class="input-area">
+        <textarea id="urlList" placeholder="每行一个文章URL，例如：
+https://mp.weixin.qq.com/s/xxxxx
+https://mp.weixin.qq.com/s/yyyyy"></textarea>
+        <div class="btn-group">
+          <button class="btn btn-primary" id="identifyBtn" onclick="identifyAccounts()">识别账号</button>
+          <button class="btn btn-primary" id="fetchBtn" onclick="fetchArticles()">抓取正文</button>
+          <button class="btn btn-secondary" onclick="clearUrls()">清空</button>
+        </div>
+        <div id="fetchResult" style="font-size:14px;color:#666;"></div>
+      </div>
+    </div>
 
-        async function checkLoginStatus() {
-            try {
-                const res = await fetch('/api/auth/status');
-                const data = await res.json();
-                if (data.code === 0) {
-                    const status = data.data;
-                    updateLoginUI(status);
-                    if (status.status === 2) {
-                        isLoggedIn = true;
-                        if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-                    } else if (status.status === 0 || status.status === 1 || status.status === -1) {
-                        isLoggedIn = false;
-                        if (!pollTimer) startPolling();
-                    }
-                }
-            } catch (e) { console.error('检查登录状态失败', e); }
-        }
+    <div class="card" id="accountCard" style="display:none;">
+      <div class="card-title">识别到 <span id="accountCount">0</span> 个公众号
+        <button class="btn btn-secondary" style="float:right;padding:4px 12px;font-size:13px;" onclick="saveIdentifiedAccounts()">保存到账号库</button>
+      </div>
+      <div class="account-list" id="accountList"></div>
+    </div>
 
-        function updateLoginUI(status) {
-            const statusEl = document.getElementById('loginStatus');
-            const scanBtn = document.getElementById('scanBtn');
-            const logoutBtn = document.getElementById('logoutBtn');
-            const qrcodeArea = document.getElementById('qrcodeArea');
-            const statusMsg = document.getElementById('statusMsg');
+    <div class="card">
+      <div class="card-title">已识别账号库
+        <span style="font-size:12px;color:#999;font-weight:400;margin-left:8px;" id="savedAccountCount"></span>
+        <div style="float:right;display:flex;gap:6px;">
+          <button class="btn btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="deleteSelectedAccounts()">删除选中</button>
+          <button class="btn btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="exportAccounts()">导出JSON</button>
+          <label class="btn btn-secondary" style="padding:4px 12px;font-size:13px;cursor:pointer;">导入JSON<input type="file" accept=".json" style="display:none;" id="importFileInput" onchange="importAccounts(this)"></label>
+          <button class="btn btn-primary" style="padding:4px 12px;font-size:13px;" onclick="refreshAccounts()">刷新</button>
+        </div>
+      </div>
+      <div class="account-list" id="savedAccountList">
+        <div class="empty-state"><div class="empty-state-icon">📋</div><div>暂无已保存账号，请先粘贴URL点击"识别账号"</div></div>
+      </div>
+    </div>
+  </div>
 
-            if (status.status === 2) {
-                statusEl.className = 'login-status logged-in';
-                statusEl.textContent = '已登录 ✓';
-                scanBtn.style.display = 'none';
-                logoutBtn.style.display = 'inline-block';
-                qrcodeArea.style.display = 'none';
-                if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
-            } else {
-                statusEl.className = 'login-status not-logged-in';
-                statusEl.textContent = status.msg || '未登录';
-                scanBtn.style.display = 'inline-block';
-                logoutBtn.style.display = 'none';
-            }
-        }
+  <!-- ========== Tab 2: 已采集文章 ========== -->
+  <div class="tab-content" id="tab-manage">
+    <div class="card">
+      <div class="card-title">文章管理</div>
+      <div class="filter-bar">
+        <span>公众号：</span>
+        <select id="mpFilter" onchange="loadArticles(1)">
+          <option value="">全部账号</option>
+        </select>
+        <span>日期：</span>
+        <input type="date" id="dateStart">
+        <span>~</span>
+        <input type="date" id="dateEnd">
+        <span>搜索：</span>
+        <input type="text" id="searchInput" placeholder="关键词" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
+        <button class="btn btn-primary" onclick="loadArticles(1)">搜索</button>
+      </div>
+      <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
+        <label><input type="checkbox" id="selectAll" onchange="toggleAll()"> 全选</label>
+        <span style="font-size:13px;color:#999;" id="selectedCount">已选 0 篇</span>
+        <button class="btn btn-primary" id="fetchContentBtn" onclick="fetchSelectedContent()">采集正文</button>
+        <button class="btn btn-primary" onclick="exportArticles()">导出Excel</button>
+        <span style="font-size:13px;color:#999;margin-left:auto;" id="exportHint"></span>
+      </div>
+      <div id="articleList">
+        <div class="empty-state"><div class="empty-state-icon">📭</div><div>暂无文章</div></div>
+      </div>
+      <div class="pagination" id="pagination"></div>
+    </div>
+  </div>
+</div>
 
-        function startPolling() {
-            if (pollTimer) return;
-            pollTimer = setInterval(checkLoginStatus, 2000);
-        }
+<!-- Sidebar -->
+<div class="sidebar-overlay" id="sidebarOverlay" onclick="closeSidebar()"></div>
+<div class="sidebar" id="sidebar">
+  <div class="sidebar-header">
+    <h2 id="sidebarTitle"></h2>
+    <button class="close-btn" onclick="closeSidebar()">&times;</button>
+  </div>
+  <div class="sidebar-meta" id="sidebarMeta"></div>
+  <div class="sidebar-body" id="sidebarBody">
+    <div class="content-loading">加载中...</div>
+  </div>
+  <div class="sidebar-footer">
+    <a id="sidebarLink" href="#" target="_blank" rel="noopener" class="btn btn-primary" style="text-decoration:none;">查看原文</a>
+    <span style="font-size:12px;color:#999;align-self:center;" id="sidebarContentStatus"></span>
+  </div>
+</div>
 
-        async function showQRCode() {
-            const qrcodeArea = document.getElementById('qrcodeArea');
-            const qrcodeImg = document.getElementById('qrcodeImg');
-            const statusMsg = document.getElementById('statusMsg');
-            
-            qrcodeArea.style.display = 'flex';
-            statusMsg.className = 'status-message';
-            statusMsg.textContent = '正在获取二维码...';
+<script>
+let currentPage = 1, totalPages = 1, totalCount = 0, isLoggedIn = false, pollTimer = null;
+let identifiedAccounts = [];
 
-            try {
-                const res = await fetch('/api/auth/qrcode');
-                const data = await res.json();
-                if (data.code === 0 && data.data.code) {
-                    qrcodeImg.src = data.data.code;
-                    statusMsg.textContent = '请使用微信扫描上方二维码';
-                    startPolling();
-                } else {
-                    statusMsg.className = 'status-message error';
-                    statusMsg.textContent = data.msg || '获取二维码失败';
-                }
-            } catch (e) {
-                statusMsg.className = 'status-message error';
-                statusMsg.textContent = '获取二维码失败';
-            }
-        }
+function switchTab(name) {
+  document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
+  document.querySelectorAll('.tab-content').forEach(c => c.classList.remove('active'));
+  if (name === 'collect') {
+    document.querySelector('.tab-btn').classList.add('active');
+    document.getElementById('tab-collect').classList.add('active');
+  } else {
+    document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    document.getElementById('tab-manage').classList.add('active');
+    loadArticles(1);
+    loadAccountsFilter();
+  }
+}
 
-        async function doLogout() {
-            try {
-                await fetch('/api/auth/logout', { method: 'POST' });
-                isLoggedIn = false;
-                checkLoginStatus();
-            } catch (e) { console.error('登出失败', e); }
-        }
+async function checkLoginStatus() {
+  try {
+    const res = await fetch('/api/auth/status');
+    const d = await res.json();
+    if (d.code === 0) {
+      updateLoginUI(d.data);
+      if (d.data.status === 2) { isLoggedIn = true; if (pollTimer) { clearInterval(pollTimer); pollTimer = null; } }
+      else if ([0,1,-1].includes(d.data.status)) { isLoggedIn = false; if (!pollTimer) startPolling(); }
+    }
+  } catch(e) {}
+}
+function updateLoginUI(s) {
+  const el = document.getElementById('loginStatus'), sb = document.getElementById('scanBtn'), lb = document.getElementById('logoutBtn');
+  if (s.status === 2) {
+    el.className = 'login-status logged-in'; el.textContent = '已登录 ✓'; sb.style.display = 'none'; lb.style.display = 'inline-block';
+    document.getElementById('qrcodeArea').style.display = 'none'; if (pollTimer) { clearInterval(pollTimer); pollTimer = null; }
+  } else {
+    el.className = 'login-status not-logged-in'; el.textContent = s.msg || '未登录'; sb.style.display = 'inline-block'; lb.style.display = 'none';
+  }
+}
+function startPolling() { if (!pollTimer) pollTimer = setInterval(checkLoginStatus, 2000); }
+async function showQRCode() {
+  const qa = document.getElementById('qrcodeArea'), qi = document.getElementById('qrcodeImg'), sm = document.getElementById('statusMsg');
+  qa.style.display = 'flex'; sm.className = 'status-message'; sm.textContent = '正在获取二维码...';
+  try {
+    const res = await fetch('/api/auth/qrcode'), d = await res.json();
+    if (d.code === 0 && d.data.code) { qi.src = d.data.code; sm.textContent = '请使用微信扫描上方二维码'; startPolling(); }
+    else { sm.className = 'status-message error'; sm.textContent = d.msg || '获取二维码失败'; }
+  } catch(e) { sm.textContent = '获取二维码失败'; }
+}
+async function doLogout() { await fetch('/api/auth/logout', {method:'POST'}); isLoggedIn = false; checkLoginStatus(); }
 
-        async function fetchArticles() {
-            const urlList = document.getElementById('urlList').value.trim();
-            const fetchBtn = document.getElementById('fetchBtn');
-            const fetchResult = document.getElementById('fetchResult');
+async function fetchArticles() {
+  const ul = document.getElementById('urlList').value.trim(), fb = document.getElementById('fetchBtn'), fr = document.getElementById('fetchResult');
+  if (!ul) { fr.style.color = '#e65100'; fr.textContent = '请先粘贴文章URL'; return; }
+  const urls = ul.split('\n').map(u => u.trim()).filter(u => u);
+  fb.disabled = true; fb.textContent = '抓取中...'; fr.style.color = '#666'; fr.textContent = '抓取中...';
+  try {
+    const res = await fetch('/api/articles/fetch', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({urls})});
+    const d = await res.json();
+    if (d.code === 0) { fr.style.color = '#2e7d32'; fr.textContent = d.msg; document.getElementById('urlList').value = ''; }
+    else { fr.style.color = '#c62828'; fr.textContent = d.msg || '抓取失败'; }
+  } catch(e) { fr.textContent = '抓取失败: ' + e.message; }
+  finally { fb.disabled = false; fb.textContent = '抓取正文'; }
+}
 
-            if (!urlList) {
-                fetchResult.style.color = '#e65100';
-                fetchResult.textContent = '请先粘贴文章URL';
-                return;
-            }
+async function identifyAccounts() {
+  const ul = document.getElementById('urlList').value.trim(), ib = document.getElementById('identifyBtn'), fr = document.getElementById('fetchResult');
+  if (!ul) { fr.style.color = '#e65100'; fr.textContent = '请先粘贴文章URL'; return; }
+  const urls = ul.split('\n').map(u => u.trim()).filter(u => u);
+  ib.disabled = true; ib.textContent = '识别中...'; fr.textContent = '正在识别...';
+  try {
+    const res = await fetch('/api/articles/identify', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({urls})});
+    const d = await res.json();
+    if (d.code === 0) {
+      identifiedAccounts = d.data.accounts;
+      document.getElementById('accountCount').textContent = identifiedAccounts.length;
+      const listEl = document.getElementById('accountList'); listEl.innerHTML = '';
+      identifiedAccounts.forEach(acc => {
+        const div = document.createElement('div'); div.className = 'account-item';
+        div.innerHTML = `<div class="info"><div class="name">${acc.mp_name || '未知公众号'}</div><div class="detail">fakeid: ${acc.fakeid}</div></div>
+        <div class="actions"><span style="font-size:13px;color:#666;">回采</span>
+        <input class="pages-input" type="number" min="1" max="20" value="3"><span style="font-size:12px;color:#999;">页</span>
+        <button class="btn btn-primary" style="padding:4px 12px;font-size:13px;" onclick="fetchByAccount('${acc.fakeid}','${acc.mp_name}',this.parentNode.querySelector('.pages-input').value)">回采</button></div>`;
+        listEl.appendChild(div);
+      });
+      document.getElementById('accountCard').style.display = 'block';
+      fr.style.color = '#2e7d32'; fr.textContent = '识别到 ' + identifiedAccounts.length + ' 个公众号';
+    } else { fr.style.color = '#c62828'; fr.textContent = d.msg || '识别失败'; }
+  } catch(e) { fr.textContent = '识别失败: ' + e.message; }
+  finally { ib.disabled = false; ib.textContent = '识别账号'; }
+}
 
-            const urls = urlList.split('\n').map(u => u.trim()).filter(u => u);
-            if (urls.length === 0) {
-                fetchResult.style.color = '#e65100';
-                fetchResult.textContent = 'URL列表为空';
-                return;
-            }
+async function saveIdentifiedAccounts() {
+  try {
+    const res = await fetch('/api/accounts/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({accounts: identifiedAccounts})});
+    const d = await res.json();
+    if (d.code === 0) { alert(d.msg); refreshAccounts(); }
+  } catch(e) { alert('保存失败'); }
+}
 
-            fetchBtn.disabled = true;
-            fetchBtn.textContent = '抓取中...';
-            fetchResult.style.color = '#666';
-            fetchResult.textContent = `正在抓取 0/${urls.length} 篇...`;
+async function refreshAccounts() {
+  try {
+    const res = await fetch('/api/accounts'), d = await res.json();
+    if (d.code === 0) {
+      const listEl = document.getElementById('savedAccountList'); listEl.innerHTML = '';
+      document.getElementById('savedAccountCount').textContent = '共 ' + d.data.total + ' 个';
+      if (d.data.accounts.length === 0) {
+        listEl.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div>暂无已保存账号</div></div>'; return;
+      }
+      let allSelected = true;
+      d.data.accounts.forEach(acc => {
+        const div = document.createElement('div'); div.className = 'account-item';
+        const checked = acc.saved ? 'checked' : '';
+        if (!acc.saved) allSelected = false;
+        div.innerHTML = `<input type="checkbox" class="account-cb" value="${acc.fakeid || acc.mp_name}" ${checked}>
+        <div class="info"><div class="name">${acc.mp_name || '未知公众号'}</div>
+        <div class="detail">已采集 ${acc.article_count} 篇 | fakeid: ${(acc.fakeid||'').substring(0,16)}... | ${acc.saved ? '已保存' : '未保存'}</div></div>
+        <div class="actions"><span style="font-size:13px;color:#666;">回采</span>
+        <input class="pages-input" type="number" min="1" max="20" value="3"><span style="font-size:12px;color:#999;">页</span>
+        ${acc.fakeid ? `<button class="btn btn-primary" style="padding:4px 12px;font-size:13px;" onclick="fetchByAccount('${acc.fakeid}','${acc.mp_name}',this.parentNode.querySelector('.pages-input').value)">回采</button>` : '<span style="font-size:12px;color:#ccc;">需先识别</span>'}</div>`;
+        listEl.appendChild(div);
+      });
+    }
+  } catch(e) {}
+}
 
-            try {
-                const res = await fetch('/api/articles/fetch', {
-                    method: 'POST',
-                    headers: { 'Content-Type': 'application/json' },
-                    body: JSON.stringify({ urls })
-                });
-                const data = await res.json();
+async function deleteSelectedAccounts() {
+  const cbs = document.querySelectorAll('.account-cb:checked');
+  if (cbs.length === 0) { alert('请先选择要删除的账号'); return; }
+  if (!confirm('确定删除选中的 ' + cbs.length + ' 个公众号？（仅删除账号库记录，不影响已采集文章）')) return;
+  const fakeids = []; cbs.forEach(cb => { if (cb.value) fakeids.push(cb.value); });
+  try {
+    const res = await fetch('/api/accounts/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fakeids})});
+    const d = await res.json();
+    alert(d.msg || '删除完成');
+    refreshAccounts();
+  } catch(e) { alert('删除失败: ' + e.message); }
+}
 
-                if (data.code === 0) {
-                    fetchResult.style.color = '#2e7d32';
-                    fetchResult.textContent = data.msg;
-                    document.getElementById('urlList').value = '';
-                    loadArticles(1);
-                } else {
-                    fetchResult.style.color = '#c62828';
-                    fetchResult.textContent = data.msg || '抓取失败';
-                }
-            } catch (e) {
-                fetchResult.style.color = '#c62828';
-                fetchResult.textContent = '抓取请求失败: ' + e.message;
-            } finally {
-                fetchBtn.disabled = false;
-                fetchBtn.textContent = '抓取正文';
-            }
-        }
+function exportAccounts() {
+  window.location.href = '/api/accounts/export';
+}
 
-        function clearUrls() {
-            document.getElementById('urlList').value = '';
-            document.getElementById('fetchResult').textContent = '';
-        }
+async function importAccounts(input) {
+  const file = input.files[0];
+  if (!file) return;
+  const formData = new FormData();
+  formData.append('file', file);
+  try {
+    const res = await fetch('/api/accounts/import', {method:'POST', body: formData});
+    const d = await res.json();
+    alert(d.msg || '导入完成');
+    refreshAccounts();
+  } catch(e) { alert('导入失败: ' + e.message); }
+  input.value = '';
+}
 
-        async function loadArticles(page = 1) {
-            const articleList = document.getElementById('articleList');
-            const pagination = document.getElementById('pagination');
-            const totalCountEl = document.getElementById('totalCount');
+async function fetchByAccount(fakeid, mpName, maxPages) {
+  const fr = document.getElementById('fetchResult');
+  fr.style.color = '#666'; fr.textContent = '正在回采 ' + mpName + ' 的文章...';
+  try {
+    const res = await fetch('/api/articles/fetch-by-account', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fakeid, mp_name: mpName, max_pages: parseInt(maxPages) || 3})});
+    const d = await res.json();
+    if (d.code === 0) { fr.style.color = '#2e7d32'; fr.textContent = d.msg; refreshAccounts(); }
+    else { fr.style.color = '#c62828'; fr.textContent = d.msg || '回采失败'; }
+  } catch(e) { fr.textContent = '回采失败: ' + e.message; }
+}
 
-            articleList.innerHTML = '<div class="loading">加载中</div>';
-            pagination.innerHTML = '';
+function clearUrls() { document.getElementById('urlList').value = ''; document.getElementById('fetchResult').textContent = ''; }
 
-            try {
-                const res = await fetch(`/api/articles?page=${page}&size=20`);
-                const data = await res.json();
+async function loadArticles(page) {
+  currentPage = page;
+  const al = document.getElementById('articleList'), pg = document.getElementById('pagination');
+  al.innerHTML = '<div class="loading">加载中</div>'; pg.innerHTML = '';
+  const mp = document.getElementById('mpFilter').value;
+  const search = document.getElementById('searchInput').value.trim();
+  const ds = document.getElementById('dateStart').value;
+  const de = document.getElementById('dateEnd').value;
+  let url = '/api/articles?page=' + page + '&size=20&mp_name=' + encodeURIComponent(mp);
+  if (search) url += '&search=' + encodeURIComponent(search);
+  if (ds) url += '&date_start=' + ds;
+  if (de) url += '&date_end=' + de;
+  try {
+    const res = await fetch(url), d = await res.json();
+    if (d.code === 0) {
+      const r = d.data; currentPage = r.page; totalPages = r.pages; totalCount = r.total;
+      document.getElementById('exportHint').textContent = '共 ' + totalCount + ' 篇';
+      document.getElementById('selectAll').checked = false;
+      updateSelectedCount();
+      if (r.items.length === 0) { al.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>暂无文章</div></div>'; return; }
+      let html = '<table class="article-table"><thead><tr><th class="cb-cell"><input type="checkbox" onchange="toggleAll()"></th><th>标题</th><th class="mp-cell">公众号</th><th class="time-cell">时间</th><th style="width:70px;">正文</th><th class="action-cell">操作</th></tr></thead><tbody>';
+      r.items.forEach(a => {
+        const t = a.publish_time ? new Date(a.publish_time * 1000).toLocaleString('zh-CN') : '-';
+        const badge = a.has_content ? '<span class="status-badge done">已采</span>' : '<span class="status-badge pending">待采</span>';
+        html += '<tr><td class="cb-cell"><input type="checkbox" class="article-cb" value="' + a.id + '" onchange="updateSelectedCount()"></td><td class="title-cell"><a href="javascript:void(0)" onclick="openArticleDetail(\'' + a.id + '\')">' + (a.title || '') + '</a></td><td class="mp-cell">' + (a.mp_name || '-') + '</td><td class="time-cell">' + t + '</td><td>' + badge + '</td><td class="action-cell"><button class="delete-btn" onclick="deleteArticle(\'' + a.id + '\')">删除</button></td></tr>';
+      });
+      html += '</tbody></table>'; al.innerHTML = html;
+      if (totalPages > 1) {
+        let ph = '<button onclick="loadArticles(' + (currentPage - 1) + ')" ' + (currentPage <= 1 ? 'disabled' : '') + '>上一页</button>';
+        for (let i = Math.max(1, currentPage-2); i <= Math.min(totalPages, currentPage+2); i++)
+          ph += '<button onclick="loadArticles(' + i + ')" ' + (i === currentPage ? 'style="background:#1aad19;color:#fff;"' : '') + '>' + i + '</button>';
+        ph += '<button onclick="loadArticles(' + (currentPage + 1) + ')" ' + (currentPage >= totalPages ? 'disabled' : '') + '>下一页</button>';
+        ph += '<span class="page-info">第' + currentPage + '/' + totalPages + '页 共' + totalCount + '篇</span>';
+        pg.innerHTML = ph;
+      }
+    }
+  } catch(e) { al.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div>加载失败</div></div>'; }
+}
 
-                if (data.code === 0) {
-                    const result = data.data;
-                    currentPage = result.page;
-                    totalPages = result.pages;
-                    totalCount = result.total;
-                    totalCountEl.textContent = totalCount;
+function toggleAll() {
+  const checked = document.getElementById('selectAll').checked;
+  document.querySelectorAll('.article-cb').forEach(cb => cb.checked = checked);
+  updateSelectedCount();
+}
 
-                    if (result.items.length === 0) {
-                        articleList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>暂无文章</div></div>';
-                        return;
-                    }
+function updateSelectedCount() {
+  const all = document.querySelectorAll('.article-cb');
+  let checked = 0;
+  all.forEach(cb => { if (cb.checked) checked++; });
+  document.getElementById('selectedCount').textContent = '已选 ' + checked + ' 篇';
+  document.getElementById('selectAll').checked = all.length > 0 && checked === all.length;
+}
 
-                    let html = `<table class="article-table">
-                        <thead><tr>
-                            <th>标题</th>
-                            <th class="mp-cell">公众号</th>
-                            <th class="time-cell">时间</th>
-                            <th class="action-cell">操作</th>
-                        </tr></thead>
-                        <tbody>`;
+async function fetchSelectedContent() {
+  const cbs = document.querySelectorAll('.article-cb:checked');
+  if (cbs.length === 0) { alert('请先选择文章'); return; }
+  const ids = []; cbs.forEach(cb => ids.push(cb.value));
+  const btn = document.getElementById('fetchContentBtn');
+  btn.disabled = true; btn.textContent = '采集中 ' + ids.length + ' 篇...';
+  try {
+    const res = await fetch('/api/articles/fetch-content', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})});
+    const d = await res.json();
+    alert(d.msg || '采集完成');
+    loadArticles(currentPage);
+  } catch(e) { alert('采集失败: ' + e.message); }
+  finally { btn.disabled = false; btn.textContent = '采集正文'; }
+}
 
-                    result.items.forEach(article => {
-                        const time = article.publish_time ? new Date(article.publish_time * 1000).toLocaleString('zh-CN') : '-';
-                        html += `<tr>
-                            <td class="title-cell">
-                                <a href="${article.url}" target="_blank" title="${article.title}">${article.title}</a>
-                            </td>
-                            <td class="mp-cell">${article.mp_name || '-'}</td>
-                            <td class="time-cell">${time}</td>
-                            <td class="action-cell">
-                                <button class="delete-btn" onclick="deleteArticle('${article.id}')">删除</button>
-                            </td>
-                        </tr>`;
-                    });
+function exportArticles() {
+  const mp = document.getElementById('mpFilter').value;
+  let url = '/api/articles/export';
+  if (mp) url += '?mp_name=' + encodeURIComponent(mp);
+  window.location.href = url;
+}
 
-                    html += '</tbody></table>';
-                    articleList.innerHTML = html;
+async function deleteArticle(id) {
+  if (!confirm('确定删除？')) return;
+  try {
+    const res = await fetch('/api/articles/' + encodeURIComponent(id), {method:'DELETE'});
+    const d = await res.json();
+    if (d.code === 0) loadArticles(currentPage);
+    else alert(d.msg);
+  } catch(e) { alert('删除失败'); }
+}
 
-                    if (totalPages > 1) {
-                        let pageHtml = `<button onclick="loadArticles(${currentPage - 1})" ${currentPage <= 1 ? 'disabled' : ''}>上一页</button>`;
-                        for (let i = 1; i <= Math.min(totalPages, 5); i++) {
-                            pageHtml += `<button onclick="loadArticles(${i})" ${i === currentPage ? 'style="background:#1aad19;color:#fff;"' : ''}>${i}</button>`;
-                        }
-                        pageHtml += `<button onclick="loadArticles(${currentPage + 1})" ${currentPage >= totalPages ? 'disabled' : ''}>下一页</button>`;
-                        pageHtml += `<span class="page-info">第${currentPage}/${totalPages}页 共${totalCount}篇</span>`;
-                        pagination.innerHTML = pageHtml;
-                    }
-                }
-            } catch (e) {
-                articleList.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div>加载失败</div></div>';
-            }
-        }
+async function loadAccountsFilter() {
+  try {
+    const res = await fetch('/api/accounts'), d = await res.json();
+    if (d.code === 0) {
+      const sel = document.getElementById('mpFilter'), current = sel.value;
+      sel.innerHTML = '<option value="">全部账号</option>';
+      d.data.accounts.forEach(a => {
+        const opt = document.createElement('option');
+        opt.value = a.mp_name; opt.textContent = a.mp_name + ' (' + a.article_count + ')';
+        if (current && current === a.mp_name) opt.selected = true;
+        sel.appendChild(opt);
+      });
+    }
+  } catch(e) {}
+}
 
-        async function deleteArticle(id) {
-            if (!confirm('确定删除这篇文章？')) return;
-            try {
-                const res = await fetch(`/api/articles/${id}`, { method: 'DELETE' });
-                const data = await res.json();
-                if (data.code === 0) {
-                    loadArticles(currentPage);
-                } else {
-                    alert(data.msg || '删除失败');
-                }
-            } catch (e) { alert('删除失败: ' + e.message); }
-        }
+async function openArticleDetail(id) {
+  document.getElementById('sidebarOverlay').style.display = 'block';
+  document.getElementById('sidebar').classList.add('open');
+  document.getElementById('sidebarTitle').textContent = '加载中...';
+  document.getElementById('sidebarMeta').textContent = '';
+  document.getElementById('sidebarBody').innerHTML = '<div class="content-loading">加载中...</div>';
+  document.getElementById('sidebarLink').href = '#';
+  document.getElementById('sidebarContentStatus').textContent = '';
 
-        function exportArticles() {
-            window.location.href = '/api/articles/export';
-        }
+  try {
+    const res = await fetch('/api/articles/' + encodeURIComponent(id) + '/detail');
+    const d = await res.json();
+    if (d.code === 0) {
+      const art = d.data;
+      document.getElementById('sidebarTitle').textContent = art.title || '(无标题)';
+      document.getElementById('sidebarLink').href = art.url || '#';
 
-        document.addEventListener('DOMContentLoaded', () => {
-            checkLoginStatus();
-            loadArticles(1);
-        });
-    </script>
+      const meta = [];
+      if (art.mp_name) meta.push('公众号: ' + art.mp_name);
+      if (art.author) meta.push('作者: ' + art.author);
+      if (art.publish_time) meta.push('时间: ' + new Date(art.publish_time * 1000).toLocaleString('zh-CN'));
+      if (art.publish_time) meta.push('ID: ' + art.id);
+      document.getElementById('sidebarMeta').textContent = meta.join(' | ');
+
+      if (art.content_text) {
+        document.getElementById('sidebarBody').innerHTML = '<div class="article-content"><div class="content_text">' + escapeHtml(art.content_text) + '</div></div>';
+        document.getElementById('sidebarContentStatus').textContent = '正文来源: 纯文字' + (art.has_content ? '(已采)' : '(未采)');
+      } else if (art.content) {
+        document.getElementById('sidebarBody').innerHTML = '<div class="article-content">' + art.content + '</div>';
+        document.getElementById('sidebarContentStatus').textContent = '正文来源: HTML(已采)';
+      } else {
+        document.getElementById('sidebarBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">📄</div><div>暂无正文内容，请先采集正文</div></div>';
+        document.getElementById('sidebarContentStatus').textContent = '待采集';
+      }
+    } else {
+      document.getElementById('sidebarBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div>' + (d.msg || '加载失败') + '</div></div>';
+    }
+  } catch(e) {
+    document.getElementById('sidebarBody').innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div>加载失败</div></div>';
+  }
+}
+
+function closeSidebar() {
+  document.getElementById('sidebarOverlay').style.display = 'none';
+  document.getElementById('sidebar').classList.remove('open');
+}
+
+function escapeHtml(text) {
+  const d = document.createElement('div');
+  d.textContent = text;
+  return d.innerHTML;
+}
+
+document.addEventListener('DOMContentLoaded', () => { checkLoginStatus(); loadArticles(1); refreshAccounts(); });
+</script>
 </body>
 </html>
