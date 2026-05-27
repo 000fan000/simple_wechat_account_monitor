@@ -9,15 +9,23 @@
   {
     "fakeid": "MjM5MTM3NTMwNA==",
     "mp_name": "第一财经",
-    "cron": "",
+    "cron": "38 12 * * *",
     "enabled": false,
-    "max_pages": 3
+    "max_pages": 3,
+    "last_run": "2026-05-27T12:38:11.125840",
+    "last_status": "success",
+    "last_msg": "新增 9 篇",
+    "last_count": 9
   },
   {
     "fakeid": "MjY2NzgwMjU0MA==",
     "mp_name": "财新",
-    "cron": "0 11 * * *",
-    "enabled": true,
-    "max_pages": 3
+    "cron": "35 12 * * *",
+    "enabled": false,
+    "max_pages": 1,
+    "last_run": "2026-05-27T12:35:12.509275",
+    "last_status": "success",
+    "last_msg": "新增 13 篇",
+    "last_count": 13
   }
 ]

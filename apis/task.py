@@ -11,8 +11,7 @@ from typing import List, Optional
 
 from db import get_db, Article
 from driver.wx_api import get_mpsweb, extract_biz_from_url, extract_fakeid_from_html, biz_to_fakeid
-from driver.scheduler import get_all_tasks, save_task, delete_task
-from driver.scheduler import get_all_tasks as scheduler_get_all
+from driver.scheduler import get_all_tasks as scheduler_get_all, save_task, delete_task
 
 router = APIRouter(prefix="/api", tags=["task"])
 
@@ -23,7 +22,6 @@ async def list_tasks():
     # 自动同步 accounts.json 中的账号到任务列表
     _sync_accounts_to_tasks()
 
-    _sync_accounts_to_tasks()
     tasks = scheduler_get_all()
     db = get_db()
     session = db.get_session()
@@ -33,29 +31,6 @@ async def list_tasks():
     ).group_by(Article.mp_name).all()
     session.close()
     stats = {name: count for name, count in rows}
-
-    for t in tasks:
-        name = t.get('mp_name', '')
-        t['article_count'] = stats.get(name, 0)
-
-    return JSONResponse({"code": 0, "data": {"tasks": tasks, "total": len(tasks)}})
-
-
-def _sync_accounts_to_tasks():
-    acc_file = os.path.join("data", "accounts.json")
-    if not os.path.exists(acc_file):
-        return
-    try:
-        with open(acc_file, 'r', encoding='utf-8') as f:
-            accounts = json.load(f)
-    except:
-        return
-    existing = scheduler_get_all()
-    existing_fakeids = {t.get('fakeid') for t in existing}
-    for acc in accounts:
-        fakeid = acc.get('fakeid', '')
-        if fakeid and fakeid not in existing_fakeids:
-            save_task({"fakeid": fakeid, "mp_name": acc.get('mp_name', ''), "cron": "", "enabled": False, "max_pages": 3})
 
     for t in tasks:
         name = t.get('mp_name', '')

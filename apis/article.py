@@ -477,7 +477,7 @@ class ArticleFilterParams:
 
 
 @router.get("/articles")
-async def list_articles(page: int = 1, size: int = 20, search: str = "", mp_name: str = "", date_start: str = "", date_end: str = ""):
+async def list_articles(page: int = 1, size: int = 20, search: str = "", mp_name: str = "", date_start: str = "", date_end: str = "", ids_only: bool = False):
     """分页查询文章列表，支持按公众号过滤+日期范围"""
     db = get_db()
     session = db.get_session()
@@ -500,6 +500,10 @@ async def list_articles(page: int = 1, size: int = 20, search: str = "", mp_name
         except:
             pass
     total = query.count()
+    if ids_only:
+        ids = [r[0] for r in query.with_entities(Article.id).all()]
+        session.close()
+        return JSONResponse({"code": 0, "data": {"ids": ids, "total": total}})
     offset = (page - 1) * size
     articles = query.order_by(Article.created_at.desc()).offset(offset).limit(size).all()
     session.close()

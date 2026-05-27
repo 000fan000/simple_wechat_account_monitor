@@ -4,6 +4,7 @@
 import json
 import os
 import time
+import asyncio
 from datetime import datetime
 from typing import Dict, List, Optional, Any
 from threading import Lock
@@ -48,6 +49,11 @@ def _cron_to_readable(cron: str) -> str:
 def init(callback=None):
     global _scheduler, _run_callback
     _load()
+    for task in _tasks_data:
+        if task.get('last_status') == 'running':
+            task['last_status'] = 'error'
+            task['last_msg'] = '上次执行意外中断'
+    _save()
     _run_callback = callback
     _scheduler = AsyncIOScheduler()
     _reschedule_all()
@@ -90,13 +96,16 @@ def _add_job(task: Dict):
         pass
 
 
-def _execute_task(task: Dict):
+async def _execute_task(task: Dict):
     fakeid = task.get('fakeid', '')
     mp_name = task.get('mp_name', '')
     max_pages = task.get('max_pages', 3)
     _update_task_status(fakeid, 'running', '')
     if _run_callback:
-        success, count, msg = _run_callback(fakeid, mp_name, max_pages)
+        result = _run_callback(fakeid, mp_name, max_pages)
+        if asyncio.iscoroutine(result):
+            result = await result
+        success, count, msg = result
         _update_task_status(fakeid, 'success' if success else 'error', msg, count)
     else:
         _update_task_status(fakeid, 'error', '调度器未初始化')

@@ -157,6 +157,7 @@ https://mp.weixin.qq.com/s/yyyyy"></textarea>
   <div class="tab-content" id="tab-tasks">
     <div class="card">
       <div class="card-title">账号管理与定时回采
+        <button class="btn btn-secondary" style="float:right;padding:4px 12px;font-size:13px;margin-left:8px;" onclick="loadTasks()">刷新状态</button>
         <span class="info-wrap">
           <span class="info-icon">?</span>
           <span class="info-tip">
@@ -196,10 +197,12 @@ https://mp.weixin.qq.com/s/yyyyy"></textarea>
         <span>搜索：</span>
         <input type="text" id="searchInput" placeholder="关键词" style="padding:6px 10px;border:1px solid #ddd;border-radius:4px;font-size:14px;">
         <button class="btn btn-primary" onclick="loadArticles(1)">搜索</button>
+        <button class="btn btn-secondary" onclick="resetSearch()">重置</button>
       </div>
       <div style="margin-bottom: 12px; display: flex; gap: 10px; align-items: center; flex-wrap: wrap;">
         <label><input type="checkbox" id="selectAll" onchange="toggleAll()"> 全选</label>
         <span style="font-size:13px;color:#999;" id="selectedCount">已选 0 篇</span>
+        <span style="font-size:13px;color:#1976d2;display:none;" id="selectAllHint">(已选择范围内全部文章)</span>
         <button class="btn btn-primary" id="fetchContentBtn" onclick="fetchSelectedContent()">采集正文</button>
         <button class="btn btn-primary" onclick="exportArticles()">导出Excel</button>
         <span style="font-size:13px;color:#999;margin-left:auto;" id="exportHint"></span>
@@ -232,6 +235,8 @@ https://mp.weixin.qq.com/s/yyyyy"></textarea>
 <script>
 let currentPage = 1, totalPages = 1, totalCount = 0, isLoggedIn = false, pollTimer = null;
 let identifiedAccounts = [];
+let selectedArticleIds = new Set();
+let selectAllMode = false;
 
 function switchTab(name) {
   document.querySelectorAll('.tab-btn').forEach(b => b.classList.remove('active'));
@@ -420,13 +425,15 @@ async function loadArticles(page) {
       const r = d.data; currentPage = r.page; totalPages = r.pages; totalCount = r.total;
       document.getElementById('exportHint').textContent = '共 ' + totalCount + ' 篇';
       document.getElementById('selectAll').checked = false;
+      document.getElementById('selectAllHint').style.display = 'none';
       updateSelectedCount();
       if (r.items.length === 0) { al.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📭</div><div>暂无文章</div></div>'; return; }
-      let html = '<table class="article-table"><thead><tr><th class="cb-cell"><input type="checkbox" onchange="toggleAll()"></th><th>标题</th><th class="mp-cell">公众号</th><th class="time-cell">时间</th><th style="width:70px;">正文</th><th class="action-cell">操作</th></tr></thead><tbody>';
+      let html = '<table class="article-table"><thead><tr><th class="cb-cell"><input type="checkbox" onchange="toggleAll(this)"></th><th>标题</th><th class="mp-cell">公众号</th><th class="time-cell">时间</th><th style="width:70px;">正文</th><th class="action-cell">操作</th></tr></thead><tbody>';
       r.items.forEach(a => {
         const t = a.publish_time ? new Date(a.publish_time * 1000).toLocaleString('zh-CN') : '-';
         const badge = a.has_content ? '<span class="status-badge done">已采</span>' : '<span class="status-badge pending">待采</span>';
-        html += '<tr><td class="cb-cell"><input type="checkbox" class="article-cb" value="' + a.id + '" onchange="updateSelectedCount()"></td><td class="title-cell"><a href="javascript:void(0)" onclick="openArticleDetail(\'' + a.id + '\')" title="' + escapeAttr(a.description || a.title || '') + '">' + (a.title || '') + '</a></td><td class="mp-cell">' + (a.mp_name || '-') + '</td><td class="time-cell">' + t + '</td><td>' + badge + '</td><td class="action-cell"><button class="delete-btn" onclick="deleteArticle(\'' + a.id + '\')">删除</button></td></tr>';
+        const checked = selectedArticleIds.has(a.id) ? 'checked' : '';
+        html += '<tr><td class="cb-cell"><input type="checkbox" class="article-cb" value="' + a.id + '" ' + checked + ' onchange="onArticleCheck(this)"></td><td class="title-cell"><a href="javascript:void(0)" onclick="openArticleDetail(\'' + a.id + '\')" title="' + escapeAttr(a.description || a.title || '') + '">' + (a.title || '') + '</a></td><td class="mp-cell">' + (a.mp_name || '-') + '</td><td class="time-cell">' + t + '</td><td>' + badge + '</td><td class="action-cell"><button class="delete-btn" onclick="deleteArticle(\'' + a.id + '\')">删除</button></td></tr>';
       });
       html += '</tbody></table>'; al.innerHTML = html;
       if (totalPages > 1) {
@@ -441,24 +448,55 @@ async function loadArticles(page) {
   } catch(e) { al.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div>加载失败</div></div>'; }
 }
 
-function toggleAll() {
-  const checked = document.getElementById('selectAll').checked;
+function onArticleCheck(cb) {
+  if (cb.checked) selectedArticleIds.add(cb.value);
+  else selectedArticleIds.delete(cb.value);
+  selectAllMode = false;
+  document.getElementById('selectAllHint').style.display = 'none';
+  updateSelectedCount();
+}
+
+async function toggleAll(el) {
+  const cb = el || document.getElementById('selectAll');
+  const checked = cb.checked;
+  document.getElementById('selectAll').checked = checked;
+  selectAllMode = checked;
+  if (checked) {
+    const ids = await fetchAllIds();
+    ids.forEach(id => selectedArticleIds.add(id));
+    document.getElementById('selectAllHint').style.display = 'inline';
+  } else {
+    selectedArticleIds.clear();
+    document.getElementById('selectAllHint').style.display = 'none';
+  }
   document.querySelectorAll('.article-cb').forEach(cb => cb.checked = checked);
   updateSelectedCount();
 }
 
 function updateSelectedCount() {
-  const all = document.querySelectorAll('.article-cb');
-  let checked = 0;
-  all.forEach(cb => { if (cb.checked) checked++; });
-  document.getElementById('selectedCount').textContent = '已选 ' + checked + ' 篇';
-  document.getElementById('selectAll').checked = all.length > 0 && checked === all.length;
+  const count = selectedArticleIds.size;
+  document.getElementById('selectedCount').textContent = '已选 ' + count + ' 篇';
+}
+
+async function fetchAllIds() {
+  const mp = document.getElementById('mpFilter').value;
+  const search = document.getElementById('searchInput').value.trim();
+  const ds = document.getElementById('dateStart').value;
+  const de = document.getElementById('dateEnd').value;
+  let url = '/api/articles?ids_only=true&mp_name=' + encodeURIComponent(mp);
+  if (search) url += '&search=' + encodeURIComponent(search);
+  if (ds) url += '&date_start=' + ds;
+  if (de) url += '&date_end=' + de;
+  try {
+    const res = await fetch(url), d = await res.json();
+    if (d.code === 0) return d.data.ids;
+  } catch(e) {}
+  return [];
 }
 
 async function fetchSelectedContent() {
-  const cbs = document.querySelectorAll('.article-cb:checked');
-  if (cbs.length === 0) { alert('请先选择文章'); return; }
-  const ids = []; cbs.forEach(cb => ids.push(cb.value));
+  const ids = [...selectedArticleIds];
+  if (ids.length === 0) { alert('请先选择文章'); return; }
   const btn = document.getElementById('fetchContentBtn');
   btn.disabled = true; btn.textContent = '采集中 ' + ids.length + ' 篇...';
   try {
@@ -468,6 +506,16 @@ async function fetchSelectedContent() {
     loadArticles(currentPage);
   } catch(e) { alert('采集失败: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '采集正文'; }
+}
+
+function resetSearch() {
+  document.getElementById('mpFilter').value = '';
+  document.getElementById('searchInput').value = '';
+  document.getElementById('dateStart').value = '';
+  document.getElementById('dateEnd').value = '';
+  selectedArticleIds.clear();
+  selectAllMode = false;
+  loadArticles(1);
 }
 
 function exportArticles() {
