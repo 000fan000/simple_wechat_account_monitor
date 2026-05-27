@@ -538,6 +538,23 @@ async def delete_article(article_id: str):
     return JSONResponse({"code": 1, "msg": "删除失败，文章不存在"})
 
 
+class DeleteArticlesRequest(BaseModel):
+    ids: List[str]
+
+
+@router.post("/articles/delete")
+async def delete_articles(req: DeleteArticlesRequest):
+    """批量删除文章"""
+    if not req.ids:
+        return JSONResponse({"code": 1, "msg": "文章ID列表为空"})
+    db = get_db()
+    deleted = 0
+    for aid in req.ids:
+        if db.delete_article(aid):
+            deleted += 1
+    return JSONResponse({"code": 0, "msg": f"已删除 {deleted} 篇"})
+
+
 @router.get("/articles/export")
 async def export_articles(ids: str = "", mp_name: str = ""):
     """导出文章为 Excel，支持按公众号过滤"""

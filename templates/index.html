@@ -205,6 +205,7 @@ https://mp.weixin.qq.com/s/yyyyy"></textarea>
         <span style="font-size:13px;color:#1976d2;display:none;" id="selectAllHint">(已选择范围内全部文章)</span>
         <button class="btn btn-primary" id="fetchContentBtn" onclick="fetchSelectedContent()">采集正文</button>
         <button class="btn btn-primary" onclick="exportArticles()">导出Excel</button>
+        <button class="btn btn-danger" id="deleteSelectedBtn" onclick="deleteSelectedArticles()">批量删除</button>
         <span style="font-size:13px;color:#999;margin-left:auto;" id="exportHint"></span>
       </div>
       <div id="articleList">
@@ -506,6 +507,20 @@ async function fetchSelectedContent() {
     loadArticles(currentPage);
   } catch(e) { alert('采集失败: ' + e.message); }
   finally { btn.disabled = false; btn.textContent = '采集正文'; }
+}
+
+async function deleteSelectedArticles() {
+  const ids = [...selectedArticleIds];
+  if (ids.length === 0) { alert('请先选择文章'); return; }
+  if (!confirm('确定删除选中的 ' + ids.length + ' 篇文章？此操作不可恢复。')) return;
+  try {
+    const res = await fetch('/api/articles/delete', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({ids})});
+    const d = await res.json();
+    alert(d.msg || '删除完成');
+    selectedArticleIds.clear();
+    selectAllMode = false;
+    loadArticles(currentPage);
+  } catch(e) { alert('删除失败: ' + e.message); }
 }
 
 function resetSearch() {
