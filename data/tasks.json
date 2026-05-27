@@ -1,0 +1,23 @@
+[
+  {
+    "fakeid": "MzI3NDI5MjI4OQ==",
+    "mp_name": "科技日报",
+    "cron": "",
+    "enabled": false,
+    "max_pages": 3
+  },
+  {
+    "fakeid": "MjM5MTM3NTMwNA==",
+    "mp_name": "第一财经",
+    "cron": "",
+    "enabled": false,
+    "max_pages": 3
+  },
+  {
+    "fakeid": "MjY2NzgwMjU0MA==",
+    "mp_name": "财新",
+    "cron": "0 11 * * *",
+    "enabled": true,
+    "max_pages": 3
+  }
+]

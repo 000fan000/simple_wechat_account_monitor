@@ -209,69 +209,61 @@ async def identify_accounts(req: IdentifyRequest):
 async def fetch_by_account(req: FetchByAccountRequest):
     import asyncio as aio
 
+    success, count, msg = await fetch_by_account_raw(req.fakeid, req.mp_name, req.max_pages)
+    return JSONResponse({"code": 0 if success else 1, "msg": msg, "data": {"new_count": count, "total": count}})
+
+
+
+async def fetch_by_account_raw(fakeid: str, mp_name: str, max_pages: int = 3):
+    import asyncio as aio, json
+    from driver.wx_api import get_mpsweb
+    db = get_db()
     try:
         mps = get_mpsweb()
     except Exception as e:
-        return JSONResponse({"code": 1, "msg": str(e)})
-
-    db = get_db()
-    results = []
+        return False, 0, str(e)
     new_count = 0
-
-    for page in range(req.max_pages):
+    for page in range(max_pages):
         begin = page * 5
         try:
-            resp = mps.get_Articles(req.fakeid, begin=begin)
+            resp = mps.get_Articles(fakeid, begin=begin)
         except Exception as e:
-            results.append({"page": page, "status": "failed", "error": str(e)})
-            break
-
+            return False, new_count, str(e)
         base_resp = resp.get('base_resp', {})
         ret = base_resp.get('ret', 0)
-
         if ret == 200013:
-            results.append({"page": page, "status": "failed", "error": "频率限制，请稍后重试"})
-            break
+            return False, new_count, "频率限制"
         if ret == 200003:
-            results.append({"page": page, "status": "failed", "error": "登录已过期，请重新扫码"})
-            break
+            return False, new_count, "登录过期"
         if ret != 0:
-            results.append({"page": page, "status": "failed", "error": f"API错误: {base_resp.get('err_msg', '')}"})
-            break
-
+            return False, new_count, base_resp.get('err_msg', '')
         pub_page = resp.get('publish_page', '')
         if isinstance(pub_page, str):
             try:
                 pub_page = json.loads(pub_page)
-            except Exception:
+            except:
                 pass
-
         pub_list = []
         if isinstance(pub_page, dict):
             pub_list = pub_page.get('publish_list', [])
         elif isinstance(pub_page, list):
             pub_list = pub_page
-
         if not pub_list:
             break
-
         for pub_item in pub_list:
             pub_info = pub_item.get('publish_info', '{}')
             if isinstance(pub_info, str):
                 try:
                     pub_info = json.loads(pub_info)
-                except Exception:
+                except:
                     continue
-
             articles_list = []
             if isinstance(pub_info, dict):
                 articles_list = pub_info.get('appmsgex', [])
-
             for art_data in articles_list:
                 link = art_data.get('link', '')
                 if not link:
                     continue
-
                 art = {
                     "id": str(art_data.get('aid', '')),
                     "title": art_data.get('title', '未知标题'),
@@ -280,25 +272,14 @@ async def fetch_by_account(req: FetchByAccountRequest):
                     "pic_url": art_data.get('cover', ''),
                     "description": art_data.get('digest', ''),
                     "publish_time": int(art_data.get('update_time', 0) or art_data.get('create_time', 0)),
-                    "mp_name": req.mp_name,
+                    "mp_name": mp_name,
                     "content_text": art_data.get('digest', ''),
                     "has_content": 0,
                 }
-
-                added = db.add_article(art)
-                if added:
+                if db.add_article(art):
                     new_count += 1
-                results.append({
-                    "title": art["title"], "url": link, "status": "new" if added else "exists"
-                })
-
         await aio.sleep(3)
-
-    return JSONResponse({
-        "code": 0,
-        "msg": f"回采完成，新增 {new_count} 篇，共 {len(results)} 篇",
-        "data": {"new_count": new_count, "total": len(results), "results": results}
-    })
+    return True, new_count, f"新增 {new_count} 篇"
 
 
 

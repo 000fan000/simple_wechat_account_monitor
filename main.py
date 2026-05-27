@@ -13,6 +13,9 @@ import uvicorn
 
 from db import init_db, get_db
 from apis.article import router as article_router
+from apis.task import router as task_router
+from driver.scheduler import init as scheduler_init, start as scheduler_start
+from apis.article import fetch_by_account_raw
 from config import cfg
 
 
@@ -29,13 +32,16 @@ app.add_middleware(
 app.mount("/static", StaticFiles(directory="static"), name="static")
 
 app.include_router(article_router)
+app.include_router(task_router)
 
 
 @app.on_event("startup")
 async def startup():
     connection_str = cfg.get("db.connection", "sqlite:///data/articles.db")
     init_db(connection_str)
-    print("[启动] 数据库初始化完成")
+    scheduler_init(callback=fetch_by_account_raw)
+    scheduler_start()
+    print("[启动] 数据库+调度器初始化完成")
 
 
 @app.get("/", response_class=HTMLResponse)

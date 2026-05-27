@@ -89,6 +89,15 @@ textarea:focus { outline: none; border-color: #1aad19; }
 .sidebar-body .article-content p { margin-bottom: 12px; }
 .sidebar-body .article-content .content_text { white-space: pre-wrap; }
 .sidebar-footer { padding: 14px 20px; border-top: 1px solid #eee; flex-shrink: 0; display: flex; gap: 10px; }
+
+/* info tooltip */
+.info-wrap { position: relative; display: inline-flex; align-items: center; cursor: help; margin-left: 6px; vertical-align: middle; }
+.info-icon { display: inline-flex; align-items: center; justify-content: center; width: 18px; height: 18px; border-radius: 50%; background: #1aad19; color: #fff; font-size: 12px; font-weight: 700; cursor: help; }
+.info-tip { display: none; position: absolute; top: 28px; left: -10px; width: 320px; background: #333; color: #eee; font-size: 13px; line-height: 1.6; padding: 14px 16px; border-radius: 8px; z-index: 100; font-weight: 400; white-space: normal; box-shadow: 0 4px 16px rgba(0,0,0,0.2); }
+.info-tip::before { content: ''; position: absolute; top: -6px; left: 16px; width: 12px; height: 12px; background: #333; transform: rotate(45deg); }
+.info-wrap:hover .info-tip { display: block; }
+.info-tip code { background: #555; color: #1aad19; padding: 1px 5px; border-radius: 3px; font-size: 12px; }
+.info-tip b { color: #fff; }
 </style>
 </head>
 <body>
@@ -97,6 +106,7 @@ textarea:focus { outline: none; border-color: #1aad19; }
 
   <div class="tabs">
     <button class="tab-btn active" onclick="switchTab('collect')">文章采集</button>
+    <button class="tab-btn" onclick="switchTab('tasks')">账号管理</button>
     <button class="tab-btn" onclick="switchTab('manage')">已采集文章</button>
   </div>
 
@@ -140,23 +150,37 @@ https://mp.weixin.qq.com/s/yyyyy"></textarea>
       <div class="account-list" id="accountList"></div>
     </div>
 
+
+  </div>
+
+  <!-- ========== Tab 2: 账号管理 ========== -->
+  <div class="tab-content" id="tab-tasks">
     <div class="card">
-      <div class="card-title">已识别账号库
-        <span style="font-size:12px;color:#999;font-weight:400;margin-left:8px;" id="savedAccountCount"></span>
-        <div style="float:right;display:flex;gap:6px;">
-          <button class="btn btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="deleteSelectedAccounts()">删除选中</button>
-          <button class="btn btn-secondary" style="padding:4px 12px;font-size:13px;" onclick="exportAccounts()">导出JSON</button>
-          <label class="btn btn-secondary" style="padding:4px 12px;font-size:13px;cursor:pointer;">导入JSON<input type="file" accept=".json" style="display:none;" id="importFileInput" onchange="importAccounts(this)"></label>
-          <button class="btn btn-primary" style="padding:4px 12px;font-size:13px;" onclick="refreshAccounts()">刷新</button>
-        </div>
+      <div class="card-title">账号管理与定时回采
+        <span class="info-wrap">
+          <span class="info-icon">?</span>
+          <span class="info-tip">
+            <b>定时回采</b><br>
+            Cron 格式: <code>分 时 日 月 周</code><br>
+            例: <code>0 8 * * *</code> = 每天 8:00<br>
+            <code>0 8,18 * * *</code> = 每天 8:00 和 18:00<br>
+            <code>30 9 * * 1-5</code> = 工作日 9:30<br><br>
+            <b>页数</b><br>
+            每页 5 篇文章。设为 3 页 = 回采最新约 15 篇。设为 10 页 = 约 50 篇。<br><br>
+            <b>立即回采</b><br>
+            手动触发一次，结果会更新"上次回采"状态。<br><br>
+            <b>移除账号</b><br>
+            仅移除定时任务配置，不影响已采集的文章。
+          </span>
+        </span>
       </div>
-      <div class="account-list" id="savedAccountList">
-        <div class="empty-state"><div class="empty-state-icon">📋</div><div>暂无已保存账号，请先粘贴URL点击"识别账号"</div></div>
+      <div id="taskList">
+        <div class="empty-state"><div class="empty-state-icon">📋</div><div>暂无账号，请先在“文章采集”Tab识别并保存账号</div></div>
       </div>
     </div>
   </div>
 
-  <!-- ========== Tab 2: 已采集文章 ========== -->
+    <!-- ========== Tab 2: 已采集文章 ========== -->
   <div class="tab-content" id="tab-manage">
     <div class="card">
       <div class="card-title">文章管理</div>
@@ -215,8 +239,12 @@ function switchTab(name) {
   if (name === 'collect') {
     document.querySelector('.tab-btn').classList.add('active');
     document.getElementById('tab-collect').classList.add('active');
-  } else {
+  } else if (name === 'tasks') {
     document.querySelectorAll('.tab-btn')[1].classList.add('active');
+    document.getElementById('tab-tasks').classList.add('active');
+    loadTasks();
+  } else {
+    document.querySelectorAll('.tab-btn')[2].classList.add('active');
     document.getElementById('tab-manage').classList.add('active');
     loadArticles(1);
     loadAccountsFilter();
@@ -398,7 +426,7 @@ async function loadArticles(page) {
       r.items.forEach(a => {
         const t = a.publish_time ? new Date(a.publish_time * 1000).toLocaleString('zh-CN') : '-';
         const badge = a.has_content ? '<span class="status-badge done">已采</span>' : '<span class="status-badge pending">待采</span>';
-        html += '<tr><td class="cb-cell"><input type="checkbox" class="article-cb" value="' + a.id + '" onchange="updateSelectedCount()"></td><td class="title-cell"><a href="javascript:void(0)" onclick="openArticleDetail(\'' + a.id + '\')">' + (a.title || '') + '</a></td><td class="mp-cell">' + (a.mp_name || '-') + '</td><td class="time-cell">' + t + '</td><td>' + badge + '</td><td class="action-cell"><button class="delete-btn" onclick="deleteArticle(\'' + a.id + '\')">删除</button></td></tr>';
+        html += '<tr><td class="cb-cell"><input type="checkbox" class="article-cb" value="' + a.id + '" onchange="updateSelectedCount()"></td><td class="title-cell"><a href="javascript:void(0)" onclick="openArticleDetail(\'' + a.id + '\')" title="' + escapeAttr(a.description || a.title || '') + '">' + (a.title || '') + '</a></td><td class="mp-cell">' + (a.mp_name || '-') + '</td><td class="time-cell">' + t + '</td><td>' + badge + '</td><td class="action-cell"><button class="delete-btn" onclick="deleteArticle(\'' + a.id + '\')">删除</button></td></tr>';
       });
       html += '</tbody></table>'; al.innerHTML = html;
       if (totalPages > 1) {
@@ -496,10 +524,13 @@ async function openArticleDetail(id) {
       if (art.mp_name) meta.push('公众号: ' + art.mp_name);
       if (art.author) meta.push('作者: ' + art.author);
       if (art.publish_time) meta.push('时间: ' + new Date(art.publish_time * 1000).toLocaleString('zh-CN'));
-      if (art.publish_time) meta.push('ID: ' + art.id);
+      meta.push('ID: ' + art.id);
       document.getElementById('sidebarMeta').textContent = meta.join(' | ');
+      if (art.description) {
+        document.getElementById('sidebarMeta').innerHTML = meta.join(' | ') + '<br><span style="color:#666;font-size:12px;line-height:1.6;display:block;margin-top:4px;">摘要: ' + escapeHtml(art.description) + '</span>';
+      }
 
-      if (art.content_text) {
+      if (art.content_text && art.content_text !== art.description) {
         document.getElementById('sidebarBody').innerHTML = '<div class="article-content"><div class="content_text">' + escapeHtml(art.content_text) + '</div></div>';
         document.getElementById('sidebarContentStatus').textContent = '正文来源: 纯文字' + (art.has_content ? '(已采)' : '(未采)');
       } else if (art.content) {
@@ -527,8 +558,100 @@ function escapeHtml(text) {
   d.textContent = text;
   return d.innerHTML;
 }
+function escapeAttr(text) {
+  return (text || '').replace(/&/g,'&amp;').replace(/"/g,'&quot;').replace(/'/g,'&#39;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+}
 
-document.addEventListener('DOMContentLoaded', () => { checkLoginStatus(); loadArticles(1); refreshAccounts(); });
+async function loadTasks() {
+  const el = document.getElementById('taskList');
+  el.innerHTML = '<div class="loading">加载中</div>';
+  try {
+    const res = await fetch('/api/tasks'), d = await res.json();
+    if (d.code === 0) {
+      const tasks = d.data.tasks;
+      if (tasks.length === 0) {
+        el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">📋</div><div>暂无账号，请先在"文章采集"Tab识别并保存账号</div></div>';
+        return;
+      }
+      let html = '';
+      tasks.forEach(t => {
+        const name = t.mp_name || '未知公众号';
+        const count = t.article_count || 0;
+        const cron = t.cron || '';
+        const enabled = t.enabled || false;
+        const maxPages = t.max_pages || 3;
+        const lastRun = t.last_run ? new Date(t.last_run).toLocaleString('zh-CN') : '从未';
+        const lastStatus = t.last_status || '';
+        const lastMsg = t.last_msg || '';
+        const lastCount = t.last_count || 0;
+        const nextRun = t.next_run ? new Date(t.next_run).toLocaleString('zh-CN') : '';
+        const cronReadable = t.cron_readable || '';
+        const statusBadge = lastStatus === 'success' ? '<span class="status-badge done">成功</span>'
+          : lastStatus === 'error' ? '<span class="status-badge pending">失败</span>'
+          : lastStatus === 'running' ? '<span style="color:#1976d2;">运行中...</span>' : '-';
+
+        html += '<div class="account-item" style="flex-wrap:wrap;">';
+        html += '<div class="info" style="flex:1 1 100%;"><div class="name">' + name + ' <span style="font-size:12px;color:#999;font-weight:400;">已采集 ' + count + ' 篇</span></div></div>';
+        html += '<div style="flex:1;display:flex;gap:16px;align-items:center;flex-wrap:wrap;font-size:13px;color:#666;">';
+        html += '<span>上次回采: ' + lastRun + ' ' + statusBadge + (lastCount ? ' (新增' + lastCount + '篇)' : '') + '</span>';
+        if (lastMsg && lastStatus === 'error') html += '<span style="color:#c62828;">' + lastMsg + '</span>';
+        if (nextRun && enabled) html += '<span>下次执行: ' + nextRun + '</span>';
+        html += '</div>';
+        html += '<div style="flex:1;display:flex;gap:8px;align-items:center;flex-wrap:wrap;">';
+        html += '<span style="font-size:13px;color:#999;">定时: </span>';
+        html += '<input class="task-cron" value="' + cron + '" placeholder="0 8 * * *" style="width:130px;padding:4px 8px;border:1px solid #ddd;border-radius:3px;font-size:13px;font-family:monospace;">';
+        html += '<span style="font-size:12px;color:#999;">' + cronReadable + '</span>';
+        html += '<span style="font-size:13px;color:#999;">页数: </span>';
+        html += '<input class="task-pages" type="number" min="1" max="20" value="' + maxPages + '" style="width:50px;padding:4px 6px;border:1px solid #ddd;border-radius:3px;font-size:13px;text-align:center;">';
+        html += '<label style="font-size:13px;"><input type="checkbox" class="task-enabled" ' + (enabled ? 'checked' : '') + '> 启用</label>';
+        html += '<button class="btn btn-primary" style="padding:4px 12px;font-size:12px;" onclick="saveTask(\'' + t.fakeid + '\',\'' + name + '\',this)">保存</button>';
+        html += '<button class="btn btn-secondary" style="padding:4px 12px;font-size:12px;" onclick="runTask(\'' + t.fakeid + '\',\'' + name + '\',this)">立即回采</button>';
+        html += '<button class="btn btn-danger" style="padding:4px 12px;font-size:12px;" onclick="deleteTask(\'' + t.fakeid + '\',\'' + name + '\')">移除</button>';
+        html += '</div></div>';
+      });
+      el.innerHTML = html;
+    }
+  } catch(e) {
+    el.innerHTML = '<div class="empty-state"><div class="empty-state-icon">❌</div><div>加载失败</div></div>';
+  }
+}
+
+async function saveTask(fakeid, mpName, btn) {
+  const item = btn.closest('.account-item');
+  const cron = item.querySelector('.task-cron').value.trim();
+  const enabled = item.querySelector('.task-enabled').checked;
+  const maxPages = parseInt(item.querySelector('.task-pages').value) || 3;
+  btn.disabled = true; btn.textContent = '保存中...';
+  try {
+    const res = await fetch('/api/tasks/save', {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify({fakeid, mp_name: mpName, cron, enabled, max_pages: maxPages})});
+    const d = await res.json();
+    if (d.code === 0) loadTasks(); else alert(d.msg);
+  } catch(e) { alert('保存失败'); }
+  finally { btn.disabled = false; btn.textContent = '保存'; }
+}
+
+async function runTask(fakeid, mpName, btn) {
+  btn.disabled = true; btn.textContent = '回采中...';
+  try {
+    const res = await fetch('/api/tasks/' + encodeURIComponent(fakeid) + '/run?mp_name=' + encodeURIComponent(mpName) + '&max_pages=3', {method:'POST'});
+    const d = await res.json();
+    alert(d.msg || (d.code === 0 ? '回采完成' : '回采失败'));
+    loadTasks();
+  } catch(e) { alert('回采失败'); }
+  finally { btn.disabled = false; btn.textContent = '立即回采'; }
+}
+
+async function deleteTask(fakeid, mpName) {
+  if (!confirm('确定移除账号 "' + mpName + '" 及其定时任务？（不影响已采集文章）')) return;
+  try {
+    const res = await fetch('/api/tasks/' + encodeURIComponent(fakeid) + '/delete', {method:'POST'});
+    const d = await res.json();
+    alert(d.msg || '移除完成');
+    loadTasks();
+  } catch(e) { alert('移除失败'); }
+}
+
+document.addEventListener('DOMContentLoaded', () => { checkLoginStatus(); loadArticles(1); });
 </script>
 </body>
 </html>
